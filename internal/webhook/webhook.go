@@ -30,8 +30,10 @@ type PushEvent struct {
 
 // Repo holds the repository details needed to build API URLs.
 type Repo struct {
-	FullName string `json:"full_name"` // "owner/repo"
-	HTMLURL  string `json:"html_url"`
+	FullName    string `json:"full_name,omitempty"` // "owner/repo"
+	HTMLURL     string `json:"html_url,omitempty"`
+	CommitsURL  string `json:"commits_url,omitempty"`
+	ContentsURL string `json:"contents_url,omitempty"`
 }
 
 // Commit is a commit reference inside the push event.
@@ -104,8 +106,8 @@ func (c *Client) setHeaders(req *http.Request, acceptJSON bool) {
 	}
 }
 
-func (c *Client) getCommitDetail(repoFullName, sha string) ([]commitFile, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/commits/%s", repoFullName, sha)
+func (c *Client) getCommitDetail(repo Repo, sha string) ([]commitFile, error) {
+	url := fmt.Sprintf("%s/%s", repo.CommitsURL, sha)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("client: build commits API request: %w", err)
@@ -124,7 +126,7 @@ func (c *Client) getCommitDetail(repoFullName, sha string) ([]commitFile, error)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("client: commits API returned %d for %s@%s",
-			resp.StatusCode, repoFullName, sha)
+			resp.StatusCode, repo.FullName, sha)
 	}
 
 	var detail commitDetail
@@ -134,9 +136,8 @@ func (c *Client) getCommitDetail(repoFullName, sha string) ([]commitFile, error)
 	return detail.Files, nil
 }
 
-func (c *Client) fetchRawFile(repoFullName, ref, path string) ([]byte, error) {
-	url := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s",
-		repoFullName, ref, path)
+func (c *Client) fetchRawFile(repo Repo, path string) ([]byte, error) {
+	url := fmt.Sprintf("%s/%s", repo.ContentsURL, path)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("client: build raw-content request for %q: %w", path, err)
@@ -154,7 +155,7 @@ func (c *Client) fetchRawFile(repoFullName, ref, path string) ([]byte, error) {
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("client: file not found at ref %q: %s", ref, path)
+		return nil, fmt.Errorf("client: file not found at path %q", path)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("client: unexpected status %d for %s", resp.StatusCode, path)
@@ -237,7 +238,7 @@ func ProcessPushEvent(body []byte, client *Client) ([]ChangedFile, error) {
 
 	agg := newAggregatedChanges()
 	for _, commit := range event.Commits {
-		files, err := client.getCommitDetail(event.Repository.FullName, commit.ID)
+		files, err := client.getCommitDetail(event.Repository, commit.ID)
 		if err != nil {
 			return nil, fmt.Errorf("processWebhook: commit %s: %w", commit.ID, err)
 		}
@@ -247,7 +248,7 @@ func ProcessPushEvent(body []byte, client *Client) ([]ChangedFile, error) {
 	var results []ChangedFile
 
 	for path := range agg.upsert {
-		content, err := client.fetchRawFile(event.Repository.FullName, event.After, path)
+		content, err := client.fetchRawFile(event.Repository, path)
 		if err != nil {
 			return nil, fmt.Errorf("processWebhook: fetch %q: %w", path, err)
 		}

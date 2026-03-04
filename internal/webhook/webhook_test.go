@@ -13,7 +13,9 @@ func strPtr(s string) *string { return &s }
 func newTestServer(t *testing.T, files []commitFile, rawContent string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if len(r.URL.Path) > 7 && r.URL.Path[:7] == "/repos/" {
+
+		t.Logf("Path: %v", r.URL.Path)
+		if len(r.URL.Path) > 7 && r.URL.Path[:8] == "/commits" {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(commitDetail{Files: files}); err != nil {
 				t.Errorf("error encoding response: %v", err)
@@ -48,8 +50,13 @@ func newTestClient(server *httptest.Server) *Client {
 
 func TestParsePushEvent_valid(t *testing.T) {
 	body := []byte(`{
-        "ref": "refs/heads/main", "after": "abc123",
-        "repository": {"full_name": "owner/repo"},
+        "ref": "refs/heads/main",
+		"after": "abc123",
+        "repository": {
+			"full_name": "owner/repo",
+			"contents_url": "https://example.com/contents",
+			"commits_url": "https://example.com/commits"
+		},
         "commits": [{"id": "aaa"}, {"id": "bbb"}]
     }`)
 	event, err := ParsePushEvent(body)
@@ -151,9 +158,14 @@ func TestProcessPushEvent_fetchesTextSkipsBinary(t *testing.T) {
 	defer server.Close()
 
 	body := []byte(`{
-        "ref": "refs/heads/main", "after": "abc123",
-        "repository": {"full_name": "owner/repo"},
-        "commits": [{"id": "aaa"}]
+        "ref": "refs/heads/main",
+		"after": "abc123",
+        "repository": {
+			"full_name": "owner/repo",
+			"contents_url": "https://example.com/contents",
+			"commits_url": "https://example.com/commits"
+		},
+        "commits": [{"id": "aaa"}, {"id": "bbb"}]
     }`)
 
 	results, err := ProcessPushEvent(body, newTestClient(server))
@@ -179,9 +191,14 @@ func TestProcessPushEvent_deletedFileHasNoContent(t *testing.T) {
 	defer server.Close()
 
 	body := []byte(`{
-        "ref": "refs/heads/main", "after": "abc123",
-        "repository": {"full_name": "owner/repo"},
-        "commits": [{"id": "aaa"}]
+        "ref": "refs/heads/main",
+		"after": "abc123",
+        "repository": {
+			"full_name": "owner/repo",
+			"contents_url": "https://example.com/contents",
+			"commits_url": "https://example.com/commits"
+		},
+        "commits": [{"id": "aaa"}, {"id": "bbb"}]
     }`)
 
 	results, err := ProcessPushEvent(body, newTestClient(server))
