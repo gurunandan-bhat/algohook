@@ -1,6 +1,8 @@
 package webhook
 
 import (
+	"crypto/hmac"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -213,5 +215,22 @@ func TestProcessPushEvent_deletedFileHasNoContent(t *testing.T) {
 	}
 	if results[0].Content != nil {
 		t.Error("expected nil Content for deleted file")
+	}
+}
+
+func TestGenerateHMAC(t *testing.T) {
+
+	secret := "It's a Secret to Everybody"
+	payload := "Hello, World!"
+
+	expected, err := hex.DecodeString("757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17")
+	if err != nil {
+		t.Errorf("failed to decode hex string: %v", err)
+	}
+
+	digest := GenerateHMAC(secret, []byte(payload))
+
+	if !hmac.Equal(digest, expected) {
+		t.Errorf("signature %s does not match expected %s", digest, expected)
 	}
 }

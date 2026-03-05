@@ -11,7 +11,6 @@ package webhook
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -265,7 +264,7 @@ func ProcessPushEvent(body []byte, client *Client) ([]ChangedFile, error) {
 	return results, nil
 }
 
-func GenerateHMAC(key string, payload []byte) string {
+func GenerateHMAC(key string, payload []byte) []byte {
 	// Create a new HMAC instance using the desired hash function (sha256.New) and the secret key.
 	h := hmac.New(sha256.New, []byte(key))
 
@@ -277,6 +276,5 @@ func GenerateHMAC(key string, payload []byte) string {
 	// Passing nil to h.Sum(nil) prevents appending to an existing slice.
 	hmacSignature := h.Sum(nil)
 
-	// Encode the byte slice into a hexadecimal string for easier storage or transmission.
-	return hex.EncodeToString(hmacSignature)
+	return hmacSignature
 }
