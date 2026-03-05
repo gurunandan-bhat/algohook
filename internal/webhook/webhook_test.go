@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -14,8 +15,7 @@ func newTestServer(t *testing.T, files []commitFile, rawContent string) *httptes
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		t.Logf("Path: %v", r.URL.Path)
-		if len(r.URL.Path) > 7 && r.URL.Path[:8] == "/commits" {
+		if strings.HasPrefix(r.URL.Path, "/commits") {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(commitDetail{Files: files}); err != nil {
 				t.Errorf("error encoding response: %v", err)
