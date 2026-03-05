@@ -70,7 +70,7 @@ func NewService(cfg *config.Config) (*Service, error) {
 
 func (s *Service) setRoutes() {
 
-	s.Muxer.Method(http.MethodGet, "/", serviceHandler(s.index))
+	s.Muxer.Method(http.MethodGet, "/", serviceHandler(s.validateGithubPush(s.index)))
 
 	// This is the handler for APIs that respond with a JSON response
 	// that handles error rather than returning it
