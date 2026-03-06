@@ -43,10 +43,19 @@ func (s *Service) validateGithubPush(next serviceHandler) serviceHandler {
 		}
 
 		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
 		w.Header().Add("Cache-Control", "no-store")
+
 		next.ServeHTTP(w, r)
 
 		return nil
 	}
+}
+
+// serviceHandler(Chain(s.index, s.validateGithubPush, s.requireJSON))
+
+func Chain(h serviceHandler, middleware ...Middleware) serviceHandler {
+	for i := len(middleware) - 1; i >= 0; i-- {
+		h = middleware[i](h)
+	}
+	return h
 }
